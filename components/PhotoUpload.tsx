@@ -48,7 +48,6 @@ export default function PhotoUpload({ onUpload }: PhotoUploadProps) {
         id="photo-input"
         type="file"
         accept="image/jpeg,image/png,image/webp"
-        capture="user"
         className="hidden"
         onChange={handleInputChange}
       />
