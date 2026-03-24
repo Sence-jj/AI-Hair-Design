@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera } from "lucide-react";
 
 interface PhotoUploadProps {
@@ -10,48 +10,35 @@ interface PhotoUploadProps {
 export default function PhotoUpload({ onUpload }: PhotoUploadProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
 
-    if (file.size > 20 * 1024 * 1024) {
-      setError("图片大小不能超过 20MB");
-      return;
-    }
-
-    setError(null);
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      const result = ev.target?.result as string;
-      if (result) setPreview(result);
+    const handleChange = function (this: HTMLInputElement) {
+      const file = this.files && this.files[0];
+      if (!file) return;
+      if (file.size > 20 * 1024 * 1024) {
+        setError("图片大小不能超过 20MB");
+        return;
+      }
+      setError(null);
+      const reader = new FileReader();
+      reader.onload = function (ev) {
+        const result = ev.target && (ev.target.result as string);
+        if (result) {
+          setPreview(result);
+        }
+      };
+      reader.readAsDataURL(file);
     };
-    reader.onerror = () => setError("图片读取失败，请重试");
-    reader.readAsDataURL(file);
-  };
 
-  if (preview) {
-    return (
-      <div className="max-w-lg mx-auto bg-white rounded-2xl p-6 shadow-sm">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={preview} alt="预览" className="w-full max-h-80 object-contain rounded-xl" />
-        <div className="flex gap-3 mt-4">
-          <button
-            onClick={() => setPreview(null)}
-            className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-600"
-          >
-            重新上传
-          </button>
-          <button
-            onClick={() => onUpload(preview)}
-            className="flex-1 py-3 bg-pink-500 text-white rounded-xl font-medium"
-          >
-            开始试戴 →
-          </button>
-        </div>
-      </div>
-    );
-  }
+    input.addEventListener("change", handleChange);
+    return () => {
+      input.removeEventListener("change", handleChange);
+    };
+  }, []);
 
   return (
     <div className="max-w-lg mx-auto">
@@ -60,26 +47,58 @@ export default function PhotoUpload({ onUpload }: PhotoUploadProps) {
         <p className="text-gray-500">上传一张清晰的正脸照片，开始虚拟发型试戴</p>
       </div>
 
-      <div className="bg-white rounded-2xl p-12 text-center border-2 border-dashed border-gray-300">
-        <div className="flex flex-col items-center gap-4">
-          <span className="text-6xl">📷</span>
-          <p className="text-gray-500 text-sm">选择照片或直接拍照</p>
+      {!preview ? (
+        <div className="bg-white rounded-2xl p-12 text-center border-2 border-dashed border-gray-200">
+          <div className="flex flex-col items-center gap-5">
+            <span className="text-6xl">📷</span>
+            <p className="text-gray-500">点击下方按钮选择照片</p>
 
-          {/* Fully visible input — no hiding tricks */}
-          <input
-            type="file"
-            accept="image/*"
-            onChange={handleChange}
-            className="block w-full text-sm text-gray-500
-              file:mr-4 file:py-3 file:px-6
-              file:rounded-xl file:border-0
-              file:text-base file:font-medium
-              file:bg-pink-500 file:text-white
-              hover:file:bg-pink-600
-              cursor-pointer"
-          />
+            {/* label直接包裹input，最原生的方式 */}
+            <label
+              className="px-8 py-4 bg-pink-500 text-white rounded-2xl font-semibold text-lg cursor-pointer active:bg-pink-700 select-none"
+              style={{ WebkitTapHighlightColor: "transparent" }}
+            >
+              📂 选择照片
+              <input
+                ref={inputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: "none" }}
+              />
+            </label>
+
+            <p className="text-xs text-gray-400">支持 JPG / PNG，最大 20MB</p>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="bg-white rounded-2xl p-6 shadow-sm">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={preview}
+            alt="预览"
+            className="w-full max-h-80 object-contain rounded-xl"
+          />
+          <div className="flex gap-3 mt-4">
+            <button
+              type="button"
+              onClick={() => {
+                setPreview(null);
+                if (inputRef.current) inputRef.current.value = "";
+              }}
+              className="flex-1 py-3 border border-gray-300 rounded-xl text-gray-600"
+            >
+              重新上传
+            </button>
+            <button
+              type="button"
+              onClick={() => onUpload(preview)}
+              className="flex-1 py-3 bg-pink-500 text-white rounded-xl font-medium"
+            >
+              开始试戴 →
+            </button>
+          </div>
+        </div>
+      )}
 
       {error && <p className="mt-3 text-sm text-red-500 text-center">{error}</p>}
 
