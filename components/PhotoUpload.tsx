@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera } from "lucide-react";
 
 interface PhotoUploadProps {
@@ -12,23 +12,35 @@ export default function PhotoUpload({ onUpload }: PhotoUploadProps) {
   const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const handleFile = (file: File) => {
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
-      setError("请上传 JPEG 或 PNG 格式的图片");
-      return;
-    }
-    if (file.size > 10 * 1024 * 1024) {
-      setError("图片大小不能超过 10MB");
-      return;
-    }
-    setError(null);
-    setPreview(URL.createObjectURL(file));
-  };
+  // Use native DOM event listener — more reliable than React's synthetic onChange on mobile
+  useEffect(() => {
+    const input = inputRef.current;
+    if (!input) return;
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFile(file);
-  };
+    const handleChange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+
+      if (file.size > 20 * 1024 * 1024) {
+        setError("图片大小不能超过 20MB");
+        return;
+      }
+
+      setError(null);
+
+      // Use FileReader for maximum compatibility
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const result = e.target?.result as string;
+        if (result) setPreview(result);
+      };
+      reader.onerror = () => setError("图片读取失败，请重试");
+      reader.readAsDataURL(file);
+    };
+
+    input.addEventListener("change", handleChange);
+    return () => input.removeEventListener("change", handleChange);
+  }, []);
 
   const handleReset = () => {
     setPreview(null);
@@ -42,31 +54,29 @@ export default function PhotoUpload({ onUpload }: PhotoUploadProps) {
         <p className="text-gray-500">上传一张清晰的正脸照片，开始虚拟发型试戴</p>
       </div>
 
-      {/* label wraps input — most reliable on mobile */}
+      {/* Visible input — NOT hidden, just visually invisible but accessible */}
       <input
         ref={inputRef}
         id="photo-input"
         type="file"
-        accept="image/jpeg,image/png,image/webp"
-        className="hidden"
-        onChange={handleInputChange}
+        accept="image/*"
+        style={{ position: "absolute", width: 1, height: 1, opacity: 0, pointerEvents: "none" }}
       />
 
       {!preview ? (
         <label
           htmlFor="photo-input"
-          className="block border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center bg-white cursor-pointer active:bg-pink-50 transition-colors"
+          className="block border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center bg-white cursor-pointer active:bg-pink-50 transition-colors select-none"
         >
-          <div className="flex flex-col items-center gap-4 pointer-events-none">
+          <div className="flex flex-col items-center gap-4">
             <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center">
               <span className="text-4xl">📷</span>
             </div>
             <div>
               <p className="text-lg font-semibold text-gray-700 mb-1">点击上传照片</p>
               <p className="text-sm text-gray-400">支持拍照或从相册选择</p>
-              <p className="text-xs text-gray-300 mt-1">JPEG / PNG，最大 10MB</p>
             </div>
-            <span className="mt-2 px-8 py-3 bg-pink-500 text-white rounded-xl font-medium text-base">
+            <span className="mt-2 px-8 py-3 bg-pink-500 text-white rounded-xl font-medium text-base pointer-events-none">
               选择照片
             </span>
           </div>
