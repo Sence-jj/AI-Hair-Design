@@ -23,6 +23,7 @@ export default function Home() {
   const [hairColor, setHairColor] = useState("#2c1810");
 
   const handlePhotoUpload = (photoUrl: string) => {
+    if (!photoUrl) return;
     setUserPhoto(photoUrl);
     setStep("select");
   };
@@ -59,9 +60,9 @@ export default function Home() {
           {step === "upload" && (
             <PhotoUpload onUpload={handlePhotoUpload} />
           )}
-          {step === "select" && userPhoto && (
+          {step === "select" && (
             <HairstyleSelector
-              userPhoto={userPhoto}
+              userPhoto={userPhoto ?? ""}
               hairColor={hairColor}
               onColorChange={setHairColor}
               onSelect={handleStyleSelect}
