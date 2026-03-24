@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Upload, Camera } from "lucide-react";
+import { Camera } from "lucide-react";
 
 interface PhotoUploadProps {
   onUpload: (photoUrl: string) => void;
@@ -10,7 +10,6 @@ interface PhotoUploadProps {
 export default function PhotoUpload({ onUpload }: PhotoUploadProps) {
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (file: File) => {
@@ -31,11 +30,9 @@ export default function PhotoUpload({ onUpload }: PhotoUploadProps) {
     if (file) handleFile(file);
   };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFile(file);
+  const handleReset = () => {
+    setPreview(null);
+    if (inputRef.current) inputRef.current.value = "";
   };
 
   return (
@@ -45,46 +42,36 @@ export default function PhotoUpload({ onUpload }: PhotoUploadProps) {
         <p className="text-gray-500">上传一张清晰的正脸照片，开始虚拟发型试戴</p>
       </div>
 
-      {/* Hidden file input */}
+      {/* label wraps input — most reliable on mobile */}
       <input
         ref={inputRef}
+        id="photo-input"
         type="file"
         accept="image/jpeg,image/png,image/webp"
+        capture="user"
         className="hidden"
         onChange={handleInputChange}
       />
 
       {!preview ? (
-        <div
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-          className={`border-2 border-dashed rounded-2xl p-12 text-center transition-all ${
-            isDragging
-              ? "border-pink-400 bg-pink-50"
-              : "border-gray-300 bg-white"
-          }`}
+        <label
+          htmlFor="photo-input"
+          className="block border-2 border-dashed border-gray-300 rounded-2xl p-12 text-center bg-white cursor-pointer active:bg-pink-50 transition-colors"
         >
-          <div className="flex flex-col items-center gap-4">
-            <div className="w-16 h-16 bg-pink-100 rounded-full flex items-center justify-center">
-              <Upload className="w-8 h-8 text-pink-500" />
+          <div className="flex flex-col items-center gap-4 pointer-events-none">
+            <div className="w-20 h-20 bg-pink-100 rounded-full flex items-center justify-center">
+              <span className="text-4xl">📷</span>
             </div>
             <div>
-              <p className="text-lg font-medium text-gray-700 mb-1">
-                {isDragging ? "松开上传" : "选择或拖拽照片"}
-              </p>
-              <p className="text-sm text-gray-400">支持 JPEG、PNG，最大 10MB</p>
+              <p className="text-lg font-semibold text-gray-700 mb-1">点击上传照片</p>
+              <p className="text-sm text-gray-400">支持拍照或从相册选择</p>
+              <p className="text-xs text-gray-300 mt-1">JPEG / PNG，最大 10MB</p>
             </div>
-            {/* Explicit button for mobile compatibility */}
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              className="mt-2 px-8 py-3 bg-pink-500 text-white rounded-xl font-medium hover:bg-pink-600 active:bg-pink-700 transition-colors text-base"
-            >
-              📷 选择照片
-            </button>
+            <span className="mt-2 px-8 py-3 bg-pink-500 text-white rounded-xl font-medium text-base">
+              选择照片
+            </span>
           </div>
-        </div>
+        </label>
       ) : (
         <div className="bg-white rounded-2xl p-6 shadow-sm">
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -96,18 +83,15 @@ export default function PhotoUpload({ onUpload }: PhotoUploadProps) {
           <div className="flex gap-3 mt-4">
             <button
               type="button"
-              onClick={() => {
-                setPreview(null);
-                if (inputRef.current) inputRef.current.value = "";
-              }}
-              className="flex-1 py-3 px-4 border border-gray-300 rounded-xl text-gray-600 hover:bg-gray-50 transition-colors"
+              onClick={handleReset}
+              className="flex-1 py-3 px-4 border border-gray-300 rounded-xl text-gray-600 active:bg-gray-100 transition-colors"
             >
               重新上传
             </button>
             <button
               type="button"
               onClick={() => onUpload(preview)}
-              className="flex-1 py-3 px-4 bg-pink-500 text-white rounded-xl hover:bg-pink-600 transition-colors font-medium"
+              className="flex-1 py-3 px-4 bg-pink-500 text-white rounded-xl active:bg-pink-700 transition-colors font-medium"
             >
               开始试戴 →
             </button>
