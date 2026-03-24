@@ -1,22 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import Replicate from "replicate";
 
-const replicate = new Replicate({
-  auth: process.env.REPLICATE_API_TOKEN,
-});
-
-// Map hairstyle names to English prompts
 const STYLE_PROMPTS: Record<string, string> = {
-  "短发波波头": "bob haircut, short hair",
+  "短发波波头": "bob haircut, short hair, chin length",
   "精灵短发": "pixie cut, very short hair",
   "中长波浪卷": "medium length wavy hair, beach waves",
-  "长直发": "long straight hair, sleek",
+  "长直发": "long straight hair, sleek and smooth",
   "长卷发": "long curly hair, voluminous curls",
   "高马尾": "high ponytail hairstyle",
-  "丸子头": "bun hairstyle, hair bun on top",
+  "丸子头": "top bun hairstyle, hair bun",
   "编发": "braided hair, braids",
   "慵懒碎发": "shaggy layered hair, messy layers",
-  "侧分长发": "side part long hair, straight",
+  "侧分长发": "side part long straight hair",
 };
 
 const COLOR_PROMPTS: Record<string, string> = {
@@ -32,34 +26,40 @@ const COLOR_PROMPTS: Record<string, string> = {
 
 export async function POST(req: NextRequest) {
   try {
-    const { imageBase64, hairstyle, hairColor } = await req.json();
-
-    if (!imageBase64) {
-      return NextResponse.json({ error: "缺少图片数据" }, { status: 400 });
-    }
+    const { hairstyle, hairColor } = await req.json();
 
     const stylePrompt = STYLE_PROMPTS[hairstyle] || hairstyle;
     const colorPrompt = COLOR_PROMPTS[hairColor] || "natural hair color";
 
-    // Use tencentarc/photomaker for portrait style transfer
-    const output = await replicate.run(
-      "tencentarc/photomaker:ddfc2b08d209f9fa8c1eca692712918bd449f695dabb4a958da31802a9570fe4",
+    const prompt = `professional portrait photo of a beautiful person with ${stylePrompt}, ${colorPrompt}, photorealistic, high quality, natural studio lighting, sharp focus, 8k`;
+
+    const response = await fetch(
+      "https://router.huggingface.co/hf-inference/models/black-forest-labs/FLUX.1-schnell",
       {
-        input: {
-          prompt: `A portrait photo of a person with ${stylePrompt}, ${colorPrompt}, photorealistic, high quality, natural lighting img`,
-          input_image: imageBase64,
-          num_steps: 20,
-          style_strength_ratio: 20,
-          num_outputs: 1,
-          guidance_scale: 5,
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.HUGGINGFACE_API_TOKEN}`,
+          "Content-Type": "application/json",
         },
+        body: JSON.stringify({ inputs: prompt }),
       }
     );
 
-    return NextResponse.json({ result: output });
+    if (!response.ok) {
+      const err = await response.text();
+      console.error("HF error:", err);
+      throw new Error(`生成失败: ${response.status}`);
+    }
+
+    // Response is binary image — convert to base64
+    const buffer = await response.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString("base64");
+    const dataUrl = `data:image/jpeg;base64,${base64}`;
+
+    return NextResponse.json({ result: dataUrl });
   } catch (error: unknown) {
-    console.error("Replicate error:", error);
-    const message = error instanceof Error ? error.message : "AI 处理失败";
+    console.error("API error:", error);
+    const message = error instanceof Error ? error.message : "AI 生成失败";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
